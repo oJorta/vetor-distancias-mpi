@@ -3,86 +3,86 @@
 #include <stdlib.h>
 #include <limits.h>
 
-#define INF INT_MAX  // infinito para as arestas inexistentes
+#define INFINITO INT_MAX  // infinito para as arestas inexistentes
 
-void update_distances(int* distances, int* neighbor_distances, int num_nodes, int edge_weight);
+void atualizar_distancias(int* distancias, int* distancias_vizinho, int total_nos, int peso_aresta);
 
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
 
-    int world_rank, world_size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    int processId, processCount;
+    MPI_Comm_rank(MPI_COMM_WORLD, &processId);
+    MPI_Comm_size(MPI_COMM_WORLD, &processCount);
 
-    int num_nodes = 7;
-    int distances[num_nodes];
-    int neighbors[num_nodes];
+    int total_nos = 7;
+    int distancias[total_nos];
+    int pesos_vizinhos[total_nos];
 
-    // matriz de adjacência com pesos das arestas
-    int graph[7][7] = {
-        {0, 3, INF, INF, INF, INF, INF}, // A
-        {3, 0, INF, 1, 2, INF, INF},      // B
-        {INF, INF, 0, 5, INF, 4, INF}, // C
-        {INF, 1, 5, 0, INF, INF, INF},  // D
-        {INF, 2, INF, INF, 0, INF, INF}, // E
-        {INF, INF, 4, INF, INF, 0, 6}, // F
-        {INF, INF, INF, INF, INF, 6, 0}   // G
+    // Matriz de adjacência com pesos das arestas
+    int grafo[7][7] = {
+        {0, 3, INFINITO, INFINITO, INFINITO, INFINITO, INFINITO}, // A
+        {3, 0, INFINITO, 1, 2, INFINITO, INFINITO},               // B
+        {INFINITO, INFINITO, 0, 5, INFINITO, 4, INFINITO},        // C
+        {INFINITO, 1, 5, 0, INFINITO, INFINITO, INFINITO},        // D
+        {INFINITO, 2, INFINITO, INFINITO, 0, INFINITO, INFINITO}, // E
+        {INFINITO, INFINITO, 4, INFINITO, INFINITO, 0, 6},        // F
+        {INFINITO, INFINITO, INFINITO, INFINITO, INFINITO, 6, 0}  // G
     };
 
-    // inicialização do vetor de distâncias e vizinhos
-    for (int i = 0; i < num_nodes; i++) {
-        distances[i] = INF;
-        neighbors[i] = INF;
+    // Inicialização do vetor de distâncias e pesos dos vizinhos
+    for (int i = 0; i < total_nos; i++) {
+        distancias[i] = INFINITO;
+        pesos_vizinhos[i] = INFINITO;
     }
-    distances[world_rank] = 0;  // distância para si mesmo é zero
+    distancias[processId] = 0;  // Distância para si mesmo é zero
 
-    // transmite a matriz de adjacência para todos os nós
-    MPI_Bcast(graph, num_nodes * num_nodes, MPI_INT, 0, MPI_COMM_WORLD);
+    // Transmite a matriz de adjacência para todos os processos
+    MPI_Bcast(grafo, total_nos * total_nos, MPI_INT, 0, MPI_COMM_WORLD);
 
-    // cada nó armazena os pesos das arestas com seus vizinhos
-    for (int i = 0; i < num_nodes; i++) {
-        neighbors[i] = graph[world_rank][i];
+    // Cada processo armazena os pesos das arestas com seus vizinhos
+    for (int i = 0; i < total_nos; i++) {
+        pesos_vizinhos[i] = grafo[processId][i];
     }
 
-    int converged = 0;
-    while (!converged) {
-        converged = 1;  // assumimos inicialmente que convergimos
+    int convergiu = 0;
+    while (!convergiu) {
+        convergiu = 1;  // Assumimos inicialmente que convergimos
 
-        for (int i = 0; i < num_nodes; i++) {
-            if (neighbors[i] != INF && i != world_rank) {
-                int neighbor_distances[num_nodes];
-                MPI_Send(distances, num_nodes, MPI_INT, i, 0, MPI_COMM_WORLD);
-                MPI_Recv(neighbor_distances, num_nodes, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        for (int i = 0; i < total_nos; i++) {
+            if (pesos_vizinhos[i] != INFINITO && i != processId) {
+                int distancias_vizinho[total_nos];
+                MPI_Send(distancias, total_nos, MPI_INT, i, 0, MPI_COMM_WORLD);
+                MPI_Recv(distancias_vizinho, total_nos, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-                int old_distances[num_nodes];
-                for (int j = 0; j < num_nodes; j++) {
-                    old_distances[j] = distances[j];
+                int distancias_antigas[total_nos];
+                for (int j = 0; j < total_nos; j++) {
+                    distancias_antigas[j] = distancias[j];
                 }
 
-                update_distances(distances, neighbor_distances, num_nodes, neighbors[i]);
+                atualizar_distancias(distancias, distancias_vizinho, total_nos, pesos_vizinhos[i]);
 
-                // verifica se algo mudou
-                for (int k = 0; k < num_nodes; k++) {
-                    if (distances[k] != old_distances[k]) {
-                        converged = 0;
+                // Verifica se algo mudou
+                for (int k = 0; k < total_nos; k++) {
+                    if (distancias[k] != distancias_antigas[k]) {
+                        convergiu = 0;
                     }
                 }
             }
         }
 
-        // verificar se todos os nós convergiram
-        int global_converged;
-        MPI_Allreduce(&converged, &global_converged, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD);
-        converged = global_converged;
+        // Verificar se todos os processos convergiram
+        int convergencia_global;
+        MPI_Allreduce(&convergiu, &convergencia_global, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD);
+        convergiu = convergencia_global;
     }
 
     // Exibe o vetor final de distâncias
-    printf("N\u00f3 %d: ", world_rank);
-    for (int i = 0; i < num_nodes; i++) {
-        if (distances[i] == INF) {
+    printf("Processo %d: ", processId);
+    for (int i = 0; i < total_nos; i++) {
+        if (distancias[i] == INFINITO) {
             printf("INF ");
         } else {
-            printf("%d ", distances[i]);
+            printf("%d ", distancias[i]);
         }
     }
     printf("\n");
@@ -91,13 +91,13 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-// atualizar o vetor de distâncias
-void update_distances(int* distances, int* neighbor_distances, int num_nodes, int edge_weight) {
-    for (int i = 0; i < num_nodes; i++) {
-        if (neighbor_distances[i] != INF) {  // verifica se o vizinho tem uma distância válida
-            int new_distance = edge_weight + neighbor_distances[i];
-            if (new_distance < distances[i]) {
-                distances[i] = new_distance;  // atualiza apenas se a nova distância for menor
+// Atualizar o vetor de distâncias
+void atualizar_distancias(int* distancias, int* distancias_vizinho, int total_nos, int peso_aresta) {
+    for (int i = 0; i < total_nos; i++) {
+        if (distancias_vizinho[i] != INFINITO) {  // Verifica se o vizinho tem uma distância válida
+            int nova_distancia = peso_aresta + distancias_vizinho[i];
+            if (nova_distancia < distancias[i]) {
+                distancias[i] = nova_distancia;  // Atualiza apenas se a nova distância for menor
             }
         }
     }
