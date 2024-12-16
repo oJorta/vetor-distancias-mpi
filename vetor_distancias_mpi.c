@@ -18,7 +18,6 @@ int main(int argc, char** argv) {
     int distancias[total_nos];
     int pesos_vizinhos[total_nos];
 
-    // Matriz de adjacência com pesos das arestas
     int grafo[7][7] = {
         {0, 3, INFINITO, INFINITO, INFINITO, INFINITO, INFINITO}, // A
         {3, 0, INFINITO, 1, 2, INFINITO, INFINITO},               // B
@@ -29,24 +28,22 @@ int main(int argc, char** argv) {
         {INFINITO, INFINITO, INFINITO, INFINITO, INFINITO, 6, 0}  // G
     };
 
-    // Inicialização do vetor de distâncias e pesos dos vizinhos
+    // vetor de distâncias e pesos dos vizinhos
     for (int i = 0; i < total_nos; i++) {
         distancias[i] = INFINITO;
         pesos_vizinhos[i] = INFINITO;
     }
-    distancias[processId] = 0;  // Distância para si mesmo é zero
+    distancias[processId] = 0;
 
-    // Transmite a matriz de adjacência para todos os processos
     MPI_Bcast(grafo, total_nos * total_nos, MPI_INT, 0, MPI_COMM_WORLD);
 
-    // Cada processo armazena os pesos das arestas com seus vizinhos
     for (int i = 0; i < total_nos; i++) {
         pesos_vizinhos[i] = grafo[processId][i];
     }
 
     int convergiu = 0;
     while (!convergiu) {
-        convergiu = 1;  // Assumimos inicialmente que convergimos
+        convergiu = 1;
 
         for (int i = 0; i < total_nos; i++) {
             if (pesos_vizinhos[i] != INFINITO && i != processId) {
@@ -61,7 +58,6 @@ int main(int argc, char** argv) {
 
                 atualizar_distancias(distancias, distancias_vizinho, total_nos, pesos_vizinhos[i]);
 
-                // Verifica se algo mudou
                 for (int k = 0; k < total_nos; k++) {
                     if (distancias[k] != distancias_antigas[k]) {
                         convergiu = 0;
@@ -70,13 +66,11 @@ int main(int argc, char** argv) {
             }
         }
 
-        // Verificar se todos os processos convergiram
         int convergencia_global;
         MPI_Allreduce(&convergiu, &convergencia_global, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD);
         convergiu = convergencia_global;
     }
 
-    // Exibe o vetor final de distâncias
     printf("Processo %d: ", processId);
     for (int i = 0; i < total_nos; i++) {
         if (distancias[i] == INFINITO) {
@@ -91,13 +85,12 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-// Atualizar o vetor de distâncias
 void atualizar_distancias(int* distancias, int* distancias_vizinho, int total_nos, int peso_aresta) {
     for (int i = 0; i < total_nos; i++) {
-        if (distancias_vizinho[i] != INFINITO) {  // Verifica se o vizinho tem uma distância válida
+        if (distancias_vizinho[i] != INFINITO) {
             int nova_distancia = peso_aresta + distancias_vizinho[i];
             if (nova_distancia < distancias[i]) {
-                distancias[i] = nova_distancia;  // Atualiza apenas se a nova distância for menor
+                distancias[i] = nova_distancia;
             }
         }
     }
